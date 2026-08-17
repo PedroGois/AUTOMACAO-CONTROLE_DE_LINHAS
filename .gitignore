@@ -1,0 +1,57 @@
+# ==========================================
+# DADOS SENSÍVEIS E PLANILHAS REAIS (LGPD)
+# ==========================================
+# Ignora todas as planilhas e dados reais
+01 - DADOS/*.xlsx
+01 - DADOS/*.xls
+01 - DADOS/*.csv
+!01 - DADOS/*.template.xlsx
+!01 - DADOS/*.example.xlsx
+
+# Ignora saídas geradas e bases baixadas
+04 - SAIDAS/BASE_SIGO.xlsx
+04 - SAIDAS/resultado_comparacao.txt
+04 - SAIDAS/historico_dashboard.json
+04 - SAIDAS/BACKUPS/
+04 - SAIDAS/HISTORICO_SIGO/
+04 - SAIDAS/COBRANCA E-MAILS/
+04 - SAIDAS/VERIFICAR POR CENTRO DE CUSTO/
+04 - SAIDAS/*.xlsx
+04 - SAIDAS/*.csv
+04 - SAIDAS/*.txt
+04 - SAIDAS/*.json
+04 - SAIDAS/*.eml
+
+# Dashboard gerado com dados da empresa (se contiver dados reais)
+DASH.html
+
+# Arquivos compactados e backups
+*.zip
+*.rar
+*.7z
+*.tar.gz
+
+# ==========================================
+# AMBIENTE, CREDENCIAIS E SISTEMA
+# ==========================================
+.env
+.env.local
+*.log
+*.tmp
+*.tmp.xlsx
+.~lock.*.xlsx#
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+env/
+
+# IDEs e Editores
+.vscode/
+.idea/
+*.sublime-workspace
+.DS_Store
+Thumbs.db
