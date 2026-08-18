@@ -9,8 +9,7 @@ venv/
 env/
 
 # Dados reais (usar templates como base)
-01 - DADOS/TELEFONIA.xlsx
-01 - DADOS/CONTATO CDC.xlsx
+01 - DADOS/*
 
 # Saídas geradas automaticamente
 04 - SAIDAS/**/*
