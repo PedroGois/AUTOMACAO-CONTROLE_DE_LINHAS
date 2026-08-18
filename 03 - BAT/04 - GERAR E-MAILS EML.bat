@@ -23,7 +23,7 @@ if "%PRAZO%"=="" set "PRAZO=25/08/2026"
 
 echo.
 echo Gerando rascunhos EML da %OPERADORA% com prazo ate %PRAZO%...
-python "02 - SCRIPTS\cobranca_verificar.py" --telefonia "01 - DADOS\TELEFONIA.xlsx" --contatos "01 - DADOS\CONTATO CDC-TESTE.xlsx" --saida "04 - SAIDAS\COBRANCA E-MAILS" --modo eml --prazo "%PRAZO%" --empresa "%OPERADORA%"
+python "02 - SCRIPTS\4_cobranca_verificar.py" --telefonia "01 - DADOS\TELEFONIA.xlsx" --contatos "01 - DADOS\CONTATO CDC-TESTE.xlsx" --saida "04 - SAIDAS\COBRANCA E-MAILS" --modo eml --prazo "%PRAZO%" --empresa "%OPERADORA%"
 set "CODIGO_ERRO=%ERRORLEVEL%"
 if not "%CODIGO_ERRO%"=="0" (
   echo.

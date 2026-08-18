@@ -1,56 +1,30 @@
-# ==========================================
-# DADOS SENSÍVEIS E PLANILHAS REAIS (LGPD)
-# ==========================================
-# Ignora todas as planilhas e dados reais
-01 - DADOS/*.xlsx
-01 - DADOS/*.xls
-01 - DADOS/*.csv
-
-
-# Ignora saídas geradas e bases baixadas
-04 - SAIDAS/BASE_SIGO.xlsx
-04 - SAIDAS/resultado_comparacao.txt
-04 - SAIDAS/historico_dashboard.json
-04 - SAIDAS/BACKUPS/
-04 - SAIDAS/HISTORICO_SIGO/
-04 - SAIDAS/COBRANCA E-MAILS/
-04 - SAIDAS/VERIFICAR POR CENTRO DE CUSTO/
-04 - SAIDAS/*.xlsx
-04 - SAIDAS/*.csv
-04 - SAIDAS/*.txt
-04 - SAIDAS/*.json
-04 - SAIDAS/*.eml
-
-# Dashboard gerado com dados da empresa (se contiver dados reais)
-DASH.html
-
-# Arquivos compactados e backups
-*.zip
-*.rar
-*.7z
-*.tar.gz
-
-# ==========================================
-# AMBIENTE, CREDENCIAIS E SISTEMA
-# ==========================================
+# Ambiente Local
 .env
-.env.local
-*.log
-*.tmp
-*.tmp.xlsx
-.~lock.*.xlsx#
-
-# Python
 __pycache__/
-*.py[cod]
-*$py.class
+*.pyc
+*.pyo
+*.egg-info/
+.Python
 venv/
-.venv/
 env/
 
-# IDEs e Editores
+# Dados reais (usar templates como base)
+01 - DADOS/TELEFONIA.xlsx
+01 - DADOS/CONTATO CDC.xlsx
+
+# Saídas geradas automaticamente
+04 - SAIDAS/**/*
+!04 - SAIDAS/
+!04 - SAIDAS/.gitkeep
+!04 - SAIDAS/BACKUPS/.gitkeep
+!04 - SAIDAS/COBRANCA E-MAILS/.gitkeep
+!04 - SAIDAS/COBRANCA E-MAILS/rascunhos_eml/.gitkeep
+!04 - SAIDAS/COBRANCA E-MAILS/anexos/.gitkeep
+!04 - SAIDAS/HISTORICO_SIGO/.gitkeep
+!04 - SAIDAS/VERIFICAR POR CENTRO DE CUSTO/.gitkeep
+
+# IDE
 .vscode/
 .idea/
-*.sublime-workspace
-.DS_Store
-Thumbs.db
+*.swp
+*.swo

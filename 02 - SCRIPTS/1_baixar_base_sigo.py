@@ -9,7 +9,11 @@ from datetime import datetime
 from urllib.parse import urlsplit
 from uuid import uuid4
 
+from dotenv import load_dotenv
 import pandas as pd
+
+# Carrega variáveis do arquivo .env
+load_dotenv()
 
 
 ENDPOINT_URL = "https://api-refeicao.jfi.com.br/users/licenses"

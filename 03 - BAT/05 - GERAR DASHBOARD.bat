@@ -2,7 +2,7 @@
 setlocal
 cd /d "%~dp0\.."
 echo ATUALIZANDO BASE DO DASHBOARD...
-python "02 - SCRIPTS\gerar_dashboard.py"
+python "02 - SCRIPTS\5_gerar_dashboard.py"
 set "CODIGO_ERRO=%ERRORLEVEL%"
 if not "%CODIGO_ERRO%"=="0" (
   echo.
