@@ -1,119 +1,77 @@
-# 📱 Controle de Telefonia & Auditoria SIGO
+# Controle de Telefonia
 
-> Automação para auditoria de linhas corporativas (VIVO/TIM), detecção de cobranças indevidas de colaboradores desligados, envio de cobranças por Centro de Custo e Dashboard de custos.
+Esta automação mantém a base de telefonia atualizada, consulta a situação dos colaboradores no SIGO e atualiza o Dashboard.
 
----
+## O que ela faz
 
-## 🎯 O que o sistema faz?
+1. Copia as planilhas de origem para `01 - DADOS`.
+2. Baixa a base atualizada do SIGO.
+3. Compara as linhas de telefonia com os dados do SIGO.
+4. Atualiza os arquivos de dados usados pelo Dashboard.
 
-1. **Cruza dados com o RH (SIGO)**: Identifica se quem está usando a linha ainda trabalha na empresa.
-2. **Corta desperdícios**: Detecta linhas ativas de funcionários **Desligados**.
-3. **Cobra os gestores (CDC)**: Separa as pendências e cria rascunhos de e-mail (`.eml`) prontos para envio.
-4. **Dashboard de Custos**: Painel visual no navegador para acompanhar valores, histórico e variações.
+O processo automático não gera e-mails, cobranças ou arquivos separados por Centro de Custo.
 
----
+## Antes de usar
 
-## ⚠️ IMPORTANTE: Setup Inicial
+- Instale as dependências uma única vez:
 
-### 1. Instalar dependências Python
-Ao baixar o projeto pela primeira vez, execute:
-```powershell
-pip install -r requirements.txt
-```
+  ```powershell
+  pip install -r requirements.txt
+  ```
 
-### 2. Configurar dados reais
-Este repositório inclui **templates de teste** para você entender o fluxo:
-- `01 - DADOS/TELEFONIA-TESTE.xlsx` → Use como referência
-- `01 - DADOS/CONTATO CDC-TESTE.xlsx` → E-mails dos gestores
+- Preencha o arquivo `.env` na raiz do projeto com as credenciais do SIGO:
 
-**Para usar seus dados reais:**
-1. Obtenha a planilha de telefonia (VIVO/TIM)
-2. Renomeie para `TELEFONIA.xlsx` ou `CONTATO CDC.xlsx`
-3. Coloque na pasta `01 - DADOS/`
+  ```env
+  SIGO_DOCUMENT=seu_documento
+  SIGO_PASSWORD=sua_senha
+  ```
 
-> ⚠️ **Os scripts procuram primeiro pelos templates (`-TESTE`). Para usar dados reais, é essencial renomear ou modificar os nomes nos scripts.**
+As credenciais são necessárias para a atualização automática funcionar sem pedir dados na tela.
 
-### 3. Configurar credenciais SIGO
-Crie um arquivo `.env` na raiz do projeto:
-```env
-SIGO_DOCUMENT=seu_cpf_aqui
-SIGO_PASSWORD=sua_senha_aqui
-```
-> ⚠️ **Nunca comite o `.env` preenchido! Ele está no `.gitignore` para proteger suas credenciais.**
+## Atualizar as planilhas de origem
 
----
+Use `03 - BAT\00 - COPIAR DADOS PARA AUTOMACAO.bat` para copiar:
 
-## 🗂️ Estrutura do Projeto
+- `TELEFONIA.xlsx`
+- `CONTATO CDC.xlsx`
+
+para a pasta `01 - DADOS` do projeto.
+
+Para agendar essa cópia a cada hora, execute uma vez:
 
 ```text
-TESTE TELEFONIA/
-│
-├── 01 - DADOS/                         # Planilhas de entrada
-│   ├── TELEFONIA-TESTE.xlsx            # ⭐ Template: Base geral de linhas e valores
-│   ├── CONTATO CDC-TESTE.xlsx          # ⭐ Template: E-mails dos gestores por CDC
-│   ├── TELEFONIA.xlsx                  # Seus dados reais (não será commitado)
-│   └── CONTATO CDC.xlsx                # Seus dados reais (não será commitado)
-│
-├── 02 - SCRIPTS/                       # Códigos em Python (Automação)
-│   ├── 1_baixar_base_sigo.py           # 1. Baixa a base atualizada do RH
-│   ├── 2_comparar_telefonia_sigo.py    # 2. Cruza Telefonia x SIGO
-│   ├── 3_separar_verificar_por_cdc.py  # 3. Divide pendências por gestor
-│   ├── 4_cobranca_verificar.py         # 4. Cria os e-mails de cobrança
-│   ├── 5_gerar_dashboard.py            # 5. Atualiza os dados do painel
-│   └── requirements.txt                # Dependências Python
-│
-├── 03 - BAT/                           # Atalhos rápidos (clique duplo)
-│   ├── 01 a 05 - Scripts individuais
-│   └── MENU DA AUTOMACAO.bat           # Menu principal unificado
-│
-├── 04 - SAIDAS/                        # Arquivos gerados automaticamente (não commitados)
-│   ├── BACKUPS/                        # Cópias de segurança automáticas
-│   ├── VERIFICAR POR CDC/              # Planilhas divididas por gestor
-│   ├── COBRANCA E-MAILS/               # E-mails prontos para envio (.eml)
-│   └── HISTORICO_SIGO/                 # Histórico de consultas
-│
-├── 00 - DASHBOARD/                     # Painel visual
-│   ├── DASH.html                       # Abra no navegador para ver gráficos
-│   ├── assets/                         # CSS e JavaScript
-│   │   ├── style.css                   # Cores e design do painel
-│   │   └── app.js                      # Filtros, gráficos e cálculos
-│   └── dados/                          # Dados que abastecem o painel (gerado)
-│
-├── .env                                # Credenciais SIGO (não será commitado)
-├── .gitignore                          # Configuração de arquivos ignorados
-├── requirements.txt                    # Dependências Python
-└── README.md                           # Guia de uso
+03 - BAT\AGENDAR COPIA DADOS A CADA HORA.bat
 ```
 
-**⭐ Nota sobre Templates:**
-- Os scripts procuram primeiro pelos arquivos `-TESTE` (templates)
-- Para usar seus dados reais, renomeie para `TELEFONIA.xlsx` e `CONTATO CDC.xlsx`
-- Arquivos reais não são commitados (segurança)
+O log dessa cópia fica em `04 - SAIDAS\LOGS\copia_dados.log`.
 
----
+## Atualizar o Dashboard
 
-## 🚀 Como Usar
+Para executar manualmente todo o fluxo de atualização, use:
 
-O jeito mais fácil é pelo **Menu Principal**:
+```text
+03 - BAT\06 - ATUALIZAR DASHBOARD AUTOMATICO.bat
+```
 
-1. Feche o Excel caso esteja com as planilhas abertas.
-2. Dê duplo clique em `MENU DA AUTOMACAO.bat`.
-3. Escolha o que deseja fazer:
+Esse arquivo atualiza a base SIGO, compara a telefonia e gera os dados do Dashboard.
 
-* **Opção 6 (Fluxo Completo)**: Roda tudo do início ao fim (baixa RH ➔ audita ➔ divide por CDC ➔ gera e-mails ➔ atualiza painel).
-* **Opção 7 (Atualizar Dashboard)**: Apenas processa a planilha e atualiza o `DASH.html`.
+Para agendar esse fluxo a cada hora, execute uma vez:
 
-Para ver os gráficos e custos, basta dar duplo clique no arquivo **`DASH.html`**.
+```text
+03 - BAT\AGENDAR ATUALIZACAO DASHBOARD A CADA HORA.bat
+```
 
----
+O log fica em `04 - SAIDAS\LOGS\atualizacao_dashboard.log`.
 
-## 🧠 Como funciona a auditoria?
+## Abrir o Dashboard
 
-| O que encontrou no RH? | O que o sistema faz? |
-| :--- | :--- |
-| **Ativo no SIGO** | Mantém a linha como `ATIVA`. |
-| **Desligado no SIGO** | Marca como `DESLIGADO` (alerta de corte/economia). |
-| **Não encontrado** | Marca como `VERIFICAR` (vai para cobrança com o gestor). |
-| **FROTA / ESTOQUE** | Regras especiais mantidas sem alteração. |
+Abra `00 - DASHBOARD\index.html` no navegador.
 
-> 🛡️ **Backup Automático**: O sistema nunca altera sua planilha sem antes salvar uma cópia com data e hora na pasta `04 - SAIDAS/BACKUPS/`.
+Se o aviso “Base não gerada” aparecer, execute `06 - ATUALIZAR DASHBOARD AUTOMATICO.bat` e confira o log se houver erro.
+
+## Regras da comparação
+
+- Colaborador ativo no SIGO: linha fica como `ATIVA`.
+- Colaborador desligado: linha fica como `DESLIGADO`.
+- Não encontrado no SIGO: linha fica como `VERIFICAR`.
+- Linhas de frota e estoque seguem suas regras próprias.
