@@ -1,10 +1,10 @@
-# 📱 Controle de Linhas - Automação de Gestão de Telefonia & Auditoria SIGO
+# Controle de Linhas - Automação de Gestão de Telefonia & Auditoria SIGO
 
 > Sistema automatizado para conferência, auditoria de linhas telefônicas corporativas, cruzamento com a base de Recursos Humanos (SIGO), detecção de custos indevidos com colaboradores desligados, geração de cobranças por Centro de Custo e Dashboard Gerencial.
 
 ---
 
-## 🎯 Objetivo do Projeto
+# 🎯 Objetivo do Projeto
 
 Reduzir custos e otimizar a gestão de telecomunicações corporativas através da conferência automatizada entre o inventário de linhas ativas (VIVO, TIM, etc.) e a base de colaboradores do sistema de RH/SIGO.
 

@@ -5,8 +5,7 @@
 01 - DADOS/*.xlsx
 01 - DADOS/*.xls
 01 - DADOS/*.csv
-!01 - DADOS/*.template.xlsx
-!01 - DADOS/*.example.xlsx
+
 
 # Ignora saídas geradas e bases baixadas
 04 - SAIDAS/BASE_SIGO.xlsx
