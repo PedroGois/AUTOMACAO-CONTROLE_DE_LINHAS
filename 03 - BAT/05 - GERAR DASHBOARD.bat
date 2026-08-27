@@ -10,6 +10,6 @@ if not "%CODIGO_ERRO%"=="0" (
   endlocal & exit /b %CODIGO_ERRO%
 )
 echo.
-echo CONCLUIDO: Base atualizada com sucesso! Abra DASH.html para visualizar.
-pause
+echo CONCLUIDO: Base atualizada com sucesso! Abra 00 - DASHBOARD\index.html para visualizar.
+if /I not "%~1"=="--agendado" pause
 endlocal & exit /b 0

@@ -27,6 +27,7 @@ DADOS_JS_PADRAO = DADOS_DIR / "dados_dashboard.js"
 DADOS_JSON_PADRAO = DADOS_DIR / "dados_dashboard.json"
 HISTORICO_PATH = DADOS_DIR / "historico_dashboard.json"
 STATUS_EXIBIDOS = {"ATIVA", "ESTOQUE", "DESLIGADO", "VERIFICAR"}
+ABA_APARELHOS = "Celulares - Patrimônio"
 
 
 # ============================================================
@@ -46,12 +47,17 @@ def texto(valor: object) -> str:
     return "" if valor is None else str(valor).strip()
 
 
+def indice_colunas(ws) -> dict[str, int]:
+    """Devolve os índices das colunas pelo nome, ignorando acentos e espaços."""
+    return {normalizar(celula.value): celula.column for celula in ws[1] if celula.value}
+
+
 # ============================================================
 # 3. VALIDAÇÃO DAS COLUNAS DA PLANILHA
 # ============================================================
 # Garante que a aba "Planos" tenha as colunas mínimas necessárias.
 def localizar_colunas(ws) -> dict[str, int]:
-    indices = {normalizar(celula.value): celula.column for celula in ws[1] if celula.value}
+    indices = indice_colunas(ws)
     obrigatorias = {"EMPRESA", "LINHA", "CHAPA/CPF", "NOME", "CPF", "COD CDC", "CDC", "STATUS"}
     ausentes = obrigatorias - indices.keys()
     if ausentes:
@@ -113,6 +119,48 @@ def carregar_dados(arquivo: Path) -> list[dict[str, object]]:
                 "valor": val_num,
             })
         return registros
+    finally:
+        wb.close()
+
+
+def carregar_aparelhos(arquivo: Path) -> list[dict[str, str]]:
+    """Lê a aba patrimonial para controle visual; não altera a automação de linhas."""
+    wb = load_workbook(arquivo, read_only=True, data_only=True)
+    try:
+        if ABA_APARELHOS not in wb.sheetnames:
+            return []
+
+        ws = wb[ABA_APARELHOS]
+        colunas = indice_colunas(ws)
+        obrigatorias = {"EMPRESA", "COD CDC", "CDC", "NUM DO PATRIMONIO"}
+        ausentes = obrigatorias - colunas.keys()
+        if ausentes:
+            raise ValueError("Colunas ausentes na aba de aparelhos: " + ", ".join(sorted(ausentes)))
+
+        def valor(linha, nome: str) -> str:
+            indice = colunas.get(nome)
+            return texto(linha[indice - 1]) if indice else ""
+
+        aparelhos = []
+        for linha in ws.iter_rows(min_row=2, values_only=True):
+            if not any(v not in (None, "") for v in linha):
+                continue
+            status = normalizar(valor(linha, "STATUS")) or "VERIFICAR"
+            if status not in STATUS_EXIBIDOS:
+                status = "VERIFICAR"
+            aparelhos.append({
+                "modelo": valor(linha, "EMPRESA") or "SEM MODELO",
+                "linha": valor(linha, "LINHA"),
+                "codCdc": valor(linha, "COD CDC") or "SEM CODIGO",
+                "cdc": valor(linha, "CDC") or "SEM CENTRO DE CUSTO",
+                "chapa": valor(linha, "CHAPA"),
+                "nome": valor(linha, "NOME"),
+                "patrimonio": valor(linha, "NUM DO PATRIMONIO") or "SEM PATRIMONIO",
+                "serie": valor(linha, "NUM SERIE"),
+                "imei": valor(linha, "IMEI 1"),
+                "status": status,
+            })
+        return aparelhos
     finally:
         wb.close()
 
@@ -183,7 +231,7 @@ def processar_historico(dados: list[dict[str, object]], gerado_em: datetime) -> 
 # 6. EXPORTAÇÃO DOS ARQUIVOS DO DASHBOARD
 # ============================================================
 # Gera os arquivos finais em JSON e JS para o dashboard consumir.
-def exportar_dados(dados: list[dict[str, object]], comparativo: dict[str, object], gerado_em: datetime) -> None:
+def exportar_dados(dados: list[dict[str, object]], aparelhos: list[dict[str, str]], comparativo: dict[str, object], gerado_em: datetime) -> None:
     """Exporta os dados em formato .js (para abrir direto com duplo clique) e .json."""
     DADOS_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -192,6 +240,7 @@ def exportar_dados(dados: list[dict[str, object]], comparativo: dict[str, object
         "total_registros": len(dados),
         "comparativo": comparativo,
         "dados": dados,
+        "aparelhos": aparelhos,
     }
 
     json_str = json.dumps(payload, ensure_ascii=False, indent=2)
@@ -219,14 +268,18 @@ def main() -> None:
 
     momento_atual = datetime.now()
     dados = carregar_dados(args.telefonia)
+    aparelhos = carregar_aparelhos(args.telefonia)
     comparativo = processar_historico(dados, momento_atual)
-    exportar_dados(dados, comparativo, momento_atual)
+    exportar_dados(dados, aparelhos, comparativo, momento_atual)
 
     print("==================================================")
     print("Base de dados do Dashboard atualizada com sucesso!")
-    print(f" • Arquivo JS:   {DADOS_JS_PADRAO}")
-    print(f" • Arquivo JSON: {DADOS_JSON_PADRAO}")
+    # Caminhos relativos evitam falha de codificação em consoles Windows
+    # quando a pasta do usuário contém caracteres especiais.
+    print(f" • Arquivo JS:   {DADOS_JS_PADRAO.relative_to(PASTA_PROJETO)}")
+    print(f" • Arquivo JSON: {DADOS_JSON_PADRAO.relative_to(PASTA_PROJETO)}")
     print(f" • Linhas carregadas: {len(dados)}")
+    print(f" • Aparelhos carregados: {len(aparelhos)}")
     if comparativo["tem_anterior"]:
         print(f" • Comparativo com medição anterior ({comparativo['data_anterior']}):")
         print(f"   Variação Custo Total: {comparativo['custo_total']['pct']}%")

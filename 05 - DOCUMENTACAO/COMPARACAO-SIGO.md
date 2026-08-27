@@ -35,4 +35,4 @@ A comparação não cria abas, não usa cores e não atualiza nome, chapa, linha
 
 ## Resultado e segurança
 
-Após cada execução, o menu mostra o total de linhas preenchidas verificadas, incluindo FROTA. Antes de salvar, é criado um backup em `02 - AUTOMAÇÃO\1 - COMPARACAO SIGO\BACKUPS`.
+Após cada execução, o menu mostra o total de linhas preenchidas verificadas, incluindo FROTA. Antes de salvar, é criado um backup em `04 - SAIDAS\BACKUPS`.

@@ -10,16 +10,20 @@ set "LOG_FILE=%LOG_DIR%\atualizacao_dashboard.log"
 echo ======================================================>> "%LOG_FILE%"
 echo [%date% %time%] Inicio da atualizacao automatica>> "%LOG_FILE%"
 
+echo Copiando as planilhas de origem...
+call "03 - BAT\00 - COPIAR DADOS PARA AUTOMACAO.bat" --agendado >> "%LOG_FILE%" 2>&1
+if errorlevel 1 goto falhou
+
 echo Atualizando a base SIGO...
-python "02 - SCRIPTS\1_baixar_base_sigo.py" >> "%LOG_FILE%" 2>&1
+call "03 - BAT\01 - ATUALIZAR BASE SIGO.bat" --agendado >> "%LOG_FILE%" 2>&1
 if errorlevel 1 goto falhou
 
 echo Comparando a telefonia com o SIGO...
-python "02 - SCRIPTS\2_comparar_telefonia_sigo.py" >> "%LOG_FILE%" 2>&1
+call "03 - BAT\02 - COMPARAR COM SIGO.bat" --agendado >> "%LOG_FILE%" 2>&1
 if errorlevel 1 goto falhou
 
 echo Atualizando os dados do Dashboard...
-python "02 - SCRIPTS\5_gerar_dashboard.py" >> "%LOG_FILE%" 2>&1
+call "03 - BAT\05 - GERAR DASHBOARD.bat" --agendado >> "%LOG_FILE%" 2>&1
 if errorlevel 1 goto falhou
 
 echo [%date% %time%] Concluido com sucesso>> "%LOG_FILE%"
