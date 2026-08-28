@@ -6,7 +6,8 @@ import argparse
 import json
 import re
 import unicodedata
-from datetime import datetime
+from collections import Counter
+from datetime import date, datetime
 from pathlib import Path
 
 from openpyxl import load_workbook
@@ -28,6 +29,8 @@ DADOS_JSON_PADRAO = DADOS_DIR / "dados_dashboard.json"
 HISTORICO_PATH = DADOS_DIR / "historico_dashboard.json"
 STATUS_EXIBIDOS = {"ATIVA", "ESTOQUE", "DESLIGADO", "VERIFICAR"}
 ABA_APARELHOS = "Celulares - Patrimônio"
+ABA_PARCELAMENTOS = "Parcelamentos"
+STATUS_PARCELAMENTO = {"PAGANDO", "PAGO"}
 
 
 # ============================================================
@@ -47,6 +50,46 @@ def texto(valor: object) -> str:
     return "" if valor is None else str(valor).strip()
 
 
+def numero(valor: object) -> float:
+    if isinstance(valor, (int, float)):
+        return float(valor)
+    if valor in (None, ""):
+        return 0.0
+    try:
+        return float(str(valor).replace("R$", "").replace(".", "").replace(",", ".").strip())
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def obter_competencia(valor: object) -> str:
+    """Converte datas da planilha para a chave mensal AAAA-MM."""
+    if isinstance(valor, (datetime, date)):
+        return valor.strftime("%Y-%m")
+    bruto = texto(valor)
+    if not bruto:
+        return ""
+    for formato in ("%d/%m/%Y", "%Y-%m-%d", "%Y-%m"):
+        try:
+            return datetime.strptime(bruto[:10], formato).strftime("%Y-%m")
+        except ValueError:
+            continue
+    encontrado = re.search(r"(20\d{2})[-/](0?[1-9]|1[0-2])", bruto)
+    return f"{encontrado.group(1)}-{int(encontrado.group(2)):02d}" if encontrado else ""
+
+
+def avancar_competencia(periodo: str) -> str:
+    """Parcelamentos de um mês entram no fechamento de linhas do mês seguinte."""
+    if not periodo:
+        return ""
+    ano, mes = (int(parte) for parte in periodo.split("-"))
+    return f"{ano + 1}-01" if mes == 12 else f"{ano}-{mes + 1:02d}"
+
+
+def valor_coluna(linha, colunas: dict[str, int], nome: str) -> object:
+    indice = colunas.get(nome)
+    return linha[indice - 1] if indice and indice <= len(linha) else None
+
+
 def indice_colunas(ws) -> dict[str, int]:
     """Devolve os índices das colunas pelo nome, ignorando acentos e espaços."""
     return {normalizar(celula.value): celula.column for celula in ws[1] if celula.value}
@@ -58,7 +101,7 @@ def indice_colunas(ws) -> dict[str, int]:
 # Garante que a aba "Planos" tenha as colunas mínimas necessárias.
 def localizar_colunas(ws) -> dict[str, int]:
     indices = indice_colunas(ws)
-    obrigatorias = {"EMPRESA", "LINHA", "CHAPA/CPF", "NOME", "CPF", "COD CDC", "CDC", "STATUS"}
+    obrigatorias = {"EMPRESA", "LINHA", "CHAPA/CPF", "NOME", "CPF", "COD CDC", "CDC", "STATUS", "DT FECHAMENTO"}
     ausentes = obrigatorias - indices.keys()
     if ausentes:
         raise ValueError("Colunas ausentes na aba Planos: " + ", ".join(sorted(ausentes)))
@@ -88,8 +131,9 @@ def carregar_dados(arquivo: Path) -> list[dict[str, object]]:
             if not any(valor not in (None, "") for valor in valores):
                 continue
 
+            competencia = obter_competencia(valores[colunas["DT FECHAMENTO"] - 1])
             status = normalizar(valores[colunas["STATUS"] - 1])
-            if status not in STATUS_EXIBIDOS:
+            if not competencia or status not in STATUS_EXIBIDOS:
                 continue
 
             empresa = normalizar(valores[colunas["EMPRESA"] - 1])
@@ -108,6 +152,7 @@ def carregar_dados(arquivo: Path) -> list[dict[str, object]]:
                         val_num = 0.0
 
             registros.append({
+                "competencia": competencia,
                 "operadora": empresa if empresa in {"VIVO", "TIM"} else "OUTRAS",
                 "linha": texto(valores[colunas["LINHA"] - 1]),
                 "chapaCpf": texto(valores[colunas["CHAPA/CPF"] - 1]),
@@ -163,6 +208,95 @@ def carregar_aparelhos(arquivo: Path) -> list[dict[str, str]]:
         return aparelhos
     finally:
         wb.close()
+
+
+def carregar_parcelamentos(arquivo: Path) -> list[dict[str, object]]:
+    """Lê o fechamento mensal de aparelhos e preserva a competência de cada registro."""
+    wb = load_workbook(arquivo, read_only=True, data_only=True)
+    try:
+        if ABA_PARCELAMENTOS not in wb.sheetnames:
+            return []
+        ws = wb[ABA_PARCELAMENTOS]
+        colunas = indice_colunas(ws)
+        obrigatorias = {
+            "PERIODO", "NUM CONTA", "EMPRESA", "LINHA", "COD CDC", "CDC", "NOME",
+            "NUM SERIE", "DATA DA COMPRA", "VALOR TOTAL", "VALOR MENSAL", "PARCELAMENTO",
+            "NUM PARCELAS", "STATUS", "TERMO",
+        }
+        ausentes = obrigatorias - colunas.keys()
+        if ausentes:
+            raise ValueError("Colunas ausentes na aba Parcelamentos: " + ", ".join(sorted(ausentes)))
+
+        registros = []
+        for linha in ws.iter_rows(min_row=2, values_only=True):
+            if not any(v not in (None, "") for v in linha):
+                continue
+            periodo_origem = obter_competencia(valor_coluna(linha, colunas, "PERIODO"))
+            if not periodo_origem:
+                continue
+            registros.append({
+                "competencia": avancar_competencia(periodo_origem),
+                "periodoOrigem": periodo_origem,
+                "conta": texto(valor_coluna(linha, colunas, "NUM CONTA")),
+                "empresa": normalizar(valor_coluna(linha, colunas, "EMPRESA")) or "VIVO",
+                "linha": texto(valor_coluna(linha, colunas, "LINHA")),
+                "codCdc": texto(valor_coluna(linha, colunas, "COD CDC")) or "SEM CODIGO",
+                "cdc": texto(valor_coluna(linha, colunas, "CDC")) or "SEM CENTRO DE CUSTO",
+                "chapa": texto(valor_coluna(linha, colunas, "CHAPA")),
+                "nome": texto(valor_coluna(linha, colunas, "NOME")),
+                "serie": texto(valor_coluna(linha, colunas, "NUM SERIE")),
+                "dataCompra": texto(valor_coluna(linha, colunas, "DATA DA COMPRA")),
+                "valorTotal": numero(valor_coluna(linha, colunas, "VALOR TOTAL")),
+                "valorMensal": numero(valor_coluna(linha, colunas, "VALOR MENSAL")),
+                "parcelaAtual": int(numero(valor_coluna(linha, colunas, "PARCELAMENTO"))),
+                "numParcelas": int(numero(valor_coluna(linha, colunas, "NUM PARCELAS"))),
+                "status": normalizar(valor_coluna(linha, colunas, "STATUS")),
+                "termo": normalizar(valor_coluna(linha, colunas, "TERMO")),
+                "atualizadoEm": texto(valor_coluna(linha, colunas, "DT ATUALIZACAO")),
+            })
+        return registros
+    finally:
+        wb.close()
+
+
+def validar_dados(dados: list[dict[str, object]], parcelamentos: list[dict[str, object]]) -> list[dict[str, str]]:
+    """Produz alertas acionáveis sem impedir a publicação do dashboard."""
+    alertas = []
+    competencias_linhas = {str(item["competencia"]) for item in dados}
+    competencias_parcelas = {str(item["competencia"]) for item in parcelamentos}
+    somente_linhas = sorted(competencias_linhas - competencias_parcelas)
+    somente_parcelas = sorted(competencias_parcelas - competencias_linhas)
+    if somente_linhas:
+        alertas.append({"tipo": "aviso", "mensagem": "Competências somente em Planos: " + ", ".join(somente_linhas)})
+    if somente_parcelas:
+        alertas.append({"tipo": "aviso", "mensagem": "Competências somente em Parcelamentos: " + ", ".join(somente_parcelas)})
+
+    chaves_linhas = Counter(f'{d["competencia"]}|{d["operadora"]}|{d["linha"]}' for d in dados)
+    qtd_duplicadas = sum(1 for quantidade in chaves_linhas.values() if quantidade > 1)
+    if qtd_duplicadas:
+        alertas.append({"tipo": "erro", "mensagem": f"{qtd_duplicadas} linha(s) duplicada(s) dentro da mesma competência."})
+
+    chaves_parcelas = Counter()
+    falhas = Counter()
+    for item in parcelamentos:
+        identificador = item["serie"] or f'{item["empresa"]}|{item["linha"]}|{item["conta"]}'
+        chaves_parcelas[f'{item["competencia"]}|{identificador}'] += 1
+        if not item["dataCompra"]:
+            falhas["data da compra"] += 1
+        if not item["numParcelas"]:
+            falhas["número de parcelas"] += 1
+        if not item["valorMensal"]:
+            falhas["valor mensal"] += 1
+        if item["status"] not in STATUS_PARCELAMENTO:
+            falhas["status"] += 1
+        if item["termo"] not in {"", "SIM", "NAO"}:
+            falhas["termo"] += 1
+    qtd_duplicadas = sum(1 for quantidade in chaves_parcelas.values() if quantidade > 1)
+    if qtd_duplicadas:
+        alertas.append({"tipo": "erro", "mensagem": f"{qtd_duplicadas} parcelamento(s) duplicado(s) dentro da mesma competência."})
+    for campo, quantidade in falhas.items():
+        alertas.append({"tipo": "erro", "mensagem": f"{quantidade} parcelamento(s) com {campo} inválido ou vazio."})
+    return alertas
 
 
 # ============================================================
@@ -231,16 +365,28 @@ def processar_historico(dados: list[dict[str, object]], gerado_em: datetime) -> 
 # 6. EXPORTAÇÃO DOS ARQUIVOS DO DASHBOARD
 # ============================================================
 # Gera os arquivos finais em JSON e JS para o dashboard consumir.
-def exportar_dados(dados: list[dict[str, object]], aparelhos: list[dict[str, str]], comparativo: dict[str, object], gerado_em: datetime) -> None:
+def exportar_dados(
+    dados: list[dict[str, object]],
+    aparelhos: list[dict[str, str]],
+    parcelamentos: list[dict[str, object]],
+    validacoes: list[dict[str, str]],
+    gerado_em: datetime,
+) -> None:
     """Exporta os dados em formato .js (para abrir direto com duplo clique) e .json."""
     DADOS_DIR.mkdir(parents=True, exist_ok=True)
 
+    competencias_linhas = sorted({str(item["competencia"]) for item in dados})
+    competencias_parcelamentos = sorted({str(item["competencia"]) for item in parcelamentos})
     payload = {
         "gerado_em": gerado_em.strftime("%d/%m/%Y às %H:%M"),
         "total_registros": len(dados),
-        "comparativo": comparativo,
+        "competencias": sorted(set(competencias_linhas) | set(competencias_parcelamentos)),
+        "competencias_linhas": competencias_linhas,
+        "competencias_parcelamentos": competencias_parcelamentos,
+        "validacoes": validacoes,
         "dados": dados,
         "aparelhos": aparelhos,
+        "parcelamentos": parcelamentos,
     }
 
     json_str = json.dumps(payload, ensure_ascii=False, indent=2)
@@ -269,8 +415,9 @@ def main() -> None:
     momento_atual = datetime.now()
     dados = carregar_dados(args.telefonia)
     aparelhos = carregar_aparelhos(args.telefonia)
-    comparativo = processar_historico(dados, momento_atual)
-    exportar_dados(dados, aparelhos, comparativo, momento_atual)
+    parcelamentos = carregar_parcelamentos(args.telefonia)
+    validacoes = validar_dados(dados, parcelamentos)
+    exportar_dados(dados, aparelhos, parcelamentos, validacoes, momento_atual)
 
     print("==================================================")
     print("Base de dados do Dashboard atualizada com sucesso!")
@@ -280,9 +427,8 @@ def main() -> None:
     print(f" • Arquivo JSON: {DADOS_JSON_PADRAO.relative_to(PASTA_PROJETO)}")
     print(f" • Linhas carregadas: {len(dados)}")
     print(f" • Aparelhos carregados: {len(aparelhos)}")
-    if comparativo["tem_anterior"]:
-        print(f" • Comparativo com medição anterior ({comparativo['data_anterior']}):")
-        print(f"   Variação Custo Total: {comparativo['custo_total']['pct']}%")
+    print(f" • Parcelamentos carregados: {len(parcelamentos)}")
+    print(f" • Alertas de qualidade: {len(validacoes)}")
     print("==================================================")
 
 
