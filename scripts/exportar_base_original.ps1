@@ -4,10 +4,10 @@ $PastaScript = Split-Path -Parent $MyInvocation.MyCommand.Path
 $PastaProjeto = Split-Path $PastaScript -Parent
 $PastaTi = Split-Path (Split-Path (Split-Path $PastaProjeto -Parent) -Parent) -Parent
 
-$BaseAtual = Join-Path $PastaProjeto "01 - DADOS\TELEFONIA.xlsx"
+$BaseAtual = Join-Path $PastaProjeto "data\entrada\TELEFONIA.xlsx"
 $BaseOriginal = Join-Path $PastaTi "Telefonia e Internet\TELEFONIA\telefonia.xlsx"
-$PastaBackup = Join-Path $PastaProjeto "04 - SAIDAS\BACKUPS\EXPORTACAO_BASE_ORIGINAL"
-$PastaLog = Join-Path $PastaProjeto "04 - SAIDAS\LOGS"
+$PastaBackup = Join-Path $PastaProjeto "data\saidas\BACKUPS\EXPORTACAO_BASE_ORIGINAL"
+$PastaLog = Join-Path $PastaProjeto "data\saidas\LOGS"
 $ArquivoLog = Join-Path $PastaLog "exportacao_base_original.log"
 
 try {

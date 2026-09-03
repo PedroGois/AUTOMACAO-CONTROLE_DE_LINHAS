@@ -4,8 +4,7 @@
 
 $PastaScript = Split-Path -Parent $MyInvocation.MyCommand.Path
 
-# 03 - BAT
-#   └── .. = AUTO - CONTROLE DE LINHAS
+# A pasta scripts fica diretamente abaixo da raiz do projeto.
 $PastaProjeto = Split-Path $PastaScript -Parent
 
 # Origem:
@@ -13,16 +12,41 @@ $PastaProjeto = Split-Path $PastaScript -Parent
 $PastaTi = Split-Path (Split-Path (Split-Path $PastaProjeto -Parent) -Parent) -Parent
 
 $PastaOrigem = Join-Path $PastaTi "Telefonia e Internet\TELEFONIA"
-$PastaDestino = Join-Path $PastaProjeto "01 - DADOS"
+$PastaDestino = Join-Path $PastaProjeto "data\entrada"
 $Arquivos = @(
     @{ Nome = "TELEFONIA.xlsx"; Origem = (Join-Path $PastaOrigem "telefonia.xlsx") },
     @{ Nome = "CONTATO CDC.xlsx"; Origem = (Join-Path $PastaOrigem "CONTATO CDC.xlsx") }
 )
 
 # Log:
-# AUTO - CONTROLE DE LINHAS\04 - SAIDAS\LOGS
-$PastaLog = Join-Path $PastaProjeto "04 - SAIDAS\LOGS"
+# Logs locais do fluxo.
+$PastaLog = Join-Path $PastaProjeto "data\saidas\LOGS"
 $ArquivoLog = Join-Path $PastaLog "copia_dados.log"
+
+function Esperar-ArquivoPronto {
+    param(
+        [Parameter(Mandatory = $true)][string]$Caminho,
+        [Parameter(Mandatory = $true)][string]$Nome
+    )
+
+    # Após o logon, o OneDrive pode levar alguns minutos para disponibilizar os arquivos.
+    # Só copia quando o tamanho se mantém estável entre duas leituras.
+    for ($Tentativa = 1; $Tentativa -le 20; $Tentativa++) {
+        if (Test-Path -LiteralPath $Caminho) {
+            $PrimeiraLeitura = Get-Item -LiteralPath $Caminho
+            Start-Sleep -Seconds 10
+            $SegundaLeitura = Get-Item -LiteralPath $Caminho -ErrorAction SilentlyContinue
+
+            if ($SegundaLeitura -and $PrimeiraLeitura.Length -eq $SegundaLeitura.Length -and $SegundaLeitura.Length -gt 0) {
+                return
+            }
+        }
+
+        Start-Sleep -Seconds 20
+    }
+
+    throw "Arquivo de origem não ficou disponível para sincronização: $Nome"
+}
 
 try {
 
@@ -37,9 +61,7 @@ try {
     }
 
     foreach ($Arquivo in $Arquivos) {
-        if (-not (Test-Path $Arquivo.Origem)) {
-            throw "Arquivo de origem não encontrado: $($Arquivo.Origem)"
-        }
+        Esperar-ArquivoPronto -Caminho $Arquivo.Origem -Nome $Arquivo.Nome
         $Destino = Join-Path $PastaDestino $Arquivo.Nome
         Copy-Item -LiteralPath $Arquivo.Origem -Destination $Destino -Force
         if (-not (Test-Path $Destino)) {
@@ -50,7 +72,7 @@ try {
     $DataHora = Get-Date -Format "dd/MM/yyyy HH:mm:ss"
 
     Add-Content -Path $ArquivoLog `
-        -Value "$DataHora - SUCESSO: TELEFONIA.xlsx e CONTATO CDC.xlsx copiados para 01 - DADOS."
+        -Value "$DataHora - SUCESSO: TELEFONIA.xlsx e CONTATO CDC.xlsx copiados para data\\entrada."
 
     exit 0
 }

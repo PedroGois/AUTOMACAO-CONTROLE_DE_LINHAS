@@ -1,118 +1,66 @@
-# Automação de Telefonia
+# Controle de Linhas
 
-## ⚠️ O problema
+## Objetivo
 
-As linhas corporativas precisam ser conferidas com frequência. A base de telefonia pode ficar desatualizada, manter linhas vinculadas a pessoas desligadas ou ter pendências sem responsável definido.
+Esta automação confere as linhas corporativas com o SIGO, destaca pendências e atualiza um dashboard gerencial. Ela reduz a conferência manual e facilita a identificação de linhas sem responsável, em estoque ou vinculadas a pessoas desligadas — casos que podem gerar custo desnecessário.
 
-Fazer essa conferência manualmente consome tempo e aumenta o risco de usar uma base antiga.
+## Como funciona
 
-## ✅ A solução
+1. Copia as planilhas corporativas para uma área local protegida.
+2. Consulta a base do SIGO e compara os cadastros.
+3. Atualiza nome, CPF e status quando as regras permitem.
+4. Gera o dashboard, relatórios por centro de custo e rascunhos de cobrança quando solicitados.
 
-Esta automação atualiza a base de telefonia e o dashboard em um único fluxo:
+O painel é apenas para consulta; alterações operacionais continuam na planilha corporativa. Antes de cancelar ou transferir uma linha, valide o caso com a área responsável.
 
-~~~text
-Planilhas corporativas
-        ↓
-Consulta ao SIGO
-        ↓
-Comparação e atualização da telefonia
-        ↓
-Dashboard de Telefonia
-~~~
+## Uso diário
 
-O processo cria backups, registra logs e separa as pendências para facilitar a conferência.
+1. Feche a planilha de telefonia.
+2. Abra `executar.bat` e escolha **1 — Atualizar dados e dashboard**.
+3. Ao final, abra `dashboard\\index.html`.
 
-## ▶️ Como utilizar
+O menu também permite exportar a base atualizada, separar pendências por centro de custo, gerar rascunhos EML, anonimizar o painel e configurar a atualização recorrente.
 
-### Uso diário
+## Primeira configuração
 
-1. Feche a planilha **TELEFONIA.xlsx**, caso esteja aberta.
-2. Abra **MENU DA AUTOMACAO.bat**.
-3. Escolha **1 — Atualizar dados e Dashboard Gerencial**.
-4. Ao terminar, abra **00 - DASHBOARD\index.html** para conferir o resultado.
-
-Essa é a opção de uso normal. Ela copia as planilhas corporativas, consulta o SIGO, compara os dados e atualiza o dashboard.
-
-### Outras opções do menu
-
-- **2 — Exportar base atualizada para a planilha original**  
-  Devolve a planilha atualizada para a pasta corporativa. Pede confirmação e cria backup da versão anterior.
-
-- **3 — Separar linhas VERIFICAR por CDC**  
-  Gera arquivos de conferência organizados por centro de custo.
-
-- **4 — Gerar e-mails EML da VIVO e TIM**  
-  Cria rascunhos de cobrança das linhas pendentes.
-
-- **5 — Executar fluxo completo**  
-  Atualiza dados, separa pendências e gera e-mails em sequência.
-
-- **6 — Anonimizar base do Dashboard para Git**  
-  Prepare a base do dashboard para envio ao Git depois de concluir a conferência. A opção anonimiza nomes, linhas, CPF, chapas, CDCs e identificadores de aparelhos.
-
-### Atualização automática
-
-Execute uma única vez:
-
-~~~text
-03 - BAT\AGENDAR\AGENDAR ATUALIZACAO COMPLETA A CADA HORA.bat
-~~~
-
-Apesar do nome do arquivo, ele está configurado para executar o fluxo completo a cada **30 minutos**.
-
-No Agendador de Tarefas, o estado **Pronto** significa que a tarefa está configurada e aguardando o próximo horário. **Em execução** aparece somente durante o processamento.
-
-### Primeira configuração
-
-1. Instale Python 3.11 ou mais recente, com a opção **Add Python to PATH**.
+1. Instale Python 3.11 ou superior.
 2. Instale as dependências:
 
-   ~~~powershell
+   ```powershell
    python -m pip install -r requirements.txt
-   ~~~
+   ```
 
-3. Crie o arquivo **.env** na raiz com suas credenciais do SIGO:
+3. Copie `config\\.env.example` para `config\\.env` e informe as credenciais do SIGO.
+4. Confirme o acesso às planilhas corporativas em `Telefonia e Internet\\TELEFONIA`.
 
-   ~~~env
-   SIGO_DOCUMENT=seu_documento
-   SIGO_PASSWORD=sua_senha
-   ~~~
+## Estrutura
 
-4. Confirme que existem os arquivos corporativos **telefonia.xlsx** e **CONTATO CDC.xlsx** em **Ti\Telefonia e Internet\TELEFONIA**.
+```text
+├── src/                 automação em Python
+├── scripts/             cópia, exportação e agendamento
+├── dashboard/           painel web (repositório próprio incorporado)
+├── config/              modelo e configuração local
+├── data/
+│   ├── entrada/         cópias locais das planilhas corporativas
+│   └── saidas/          relatórios, logs e backups locais
+├── executar.bat         ponto de entrada
+├── requirements.txt     dependências Python
+└── README.md            esta documentação
+```
 
-## 📌 Regras
+## Arquivos principais
 
-- A consulta ao SIGO é somente de leitura.
-- A comparação atualiza CPF e Status conforme as regras de negócio.
-- Linhas podem ficar como **ATIVA**, **ESTOQUE**, **DESLIGADO** ou **VERIFICAR**.
-- Linhas marcadas como **FROTA**, **FAMILIA** e **FORA SIGO** seguem regras próprias. Consulte [as regras detalhadas da comparação](05%20-%20DOCUMENTACAO/COMPARACAO-SIGO.md).
-- A aba **Aparelhos** do dashboard é apenas de consulta; ela não altera dados no SIGO.
-- Nunca envie o arquivo **.env**, credenciais ou dados operacionais ao Git.
+- `executar.bat`: uso diário e tarefas auxiliares.
+- `src/comparar_telefonia_sigo.py`: regras de comparação com o SIGO.
+- `src/gerar_dashboard.py`: base de dados do painel.
+- `scripts/agendar_atualizacao.ps1`: agenda a atualização a cada 30 minutos e após o logon.
 
-## ℹ️ Informações importantes
+## Cuidados
 
-### Onde conferir o resultado
+- `config/.env`, planilhas, logs, backups e resultados são locais e ignorados pelo Git.
+- Nunca publique dados reais do dashboard. Use a opção de anonimização e revise o resultado antes de enviar ao Git.
+- A consulta ao SIGO é somente de leitura; a comparação altera a cópia local de `TELEFONIA.xlsx` e cria backup.
 
-- Dashboard: **00 - DASHBOARD\index.html**
-- Base SIGO atual: **04 - SAIDAS\BASE_SIGO.xlsx**
-- Resultado da comparação: **04 - SAIDAS\resultado_comparacao.txt**
-- Log do fluxo: **04 - SAIDAS\LOGS\atualizacao_dashboard.log**
-- Backups: **04 - SAIDAS\BACKUPS**
+## Detalhes técnicos
 
-### Estrutura do projeto
-
-~~~text
-AUTO - CONTROLE DE LINHAS/
-├── MENU DA AUTOMACAO.bat         # ponto de entrada manual
-├── 00 - DASHBOARD/               # painel e seu repositório próprio
-├── 01 - DADOS/                   # cópias das planilhas corporativas
-├── 02 - SCRIPTS/                 # integração, comparação e geração
-├── 03 - BAT/                     # ações do menu e agendamento
-├── 04 - SAIDAS/                  # base SIGO, resultados, logs e backups
-└── 05 - DOCUMENTACAO/            # regras detalhadas da automação
-~~~
-
-### Documentação relacionada
-
-- Regras completas de comparação: **05 - DOCUMENTACAO\COMPARACAO-SIGO.md**
-- Documentação do dashboard: **00 - DASHBOARD\README.MD**
+As regras de comparação priorizam chapa, CPF e nome normalizado. Linhas de frota, família, fora do SIGO e estoque seguem exceções preservadas no código. As dependências estão em `requirements.txt`.

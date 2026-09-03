@@ -20,9 +20,9 @@ from openpyxl import load_workbook
 # serão usados para leitura e gravação dos dados do dashboard.
 PASTA_SCRIPT = Path(__file__).resolve().parent
 PASTA_PROJETO = PASTA_SCRIPT.parent
-ARQUIVO_PADRAO = PASTA_PROJETO / "01 - DADOS" / "TELEFONIA.xlsx"
-SAIDAS_DIR = PASTA_PROJETO / "04 - SAIDAS"
-DASHBOARD_DIR = PASTA_PROJETO / "00 - DASHBOARD"
+ARQUIVO_PADRAO = PASTA_PROJETO / "data" / "entrada" / "TELEFONIA.xlsx"
+SAIDAS_DIR = PASTA_PROJETO / "data" / "saidas"
+DASHBOARD_DIR = PASTA_PROJETO / "dashboard"
 DADOS_DIR = DASHBOARD_DIR / "dados"
 DADOS_JS_PADRAO = DADOS_DIR / "dados_dashboard.js"
 DADOS_JSON_PADRAO = DADOS_DIR / "dados_dashboard.json"
@@ -85,9 +85,47 @@ def avancar_competencia(periodo: str) -> str:
     return f"{ano + 1}-01" if mes == 12 else f"{ano}-{mes + 1:02d}"
 
 
+def meses_de_parcelamento(periodo: object, data_compra: object) -> int:
+    """Calcula a parcela quando a fórmula do Excel ainda não foi recalculada."""
+    if not isinstance(periodo, (datetime, date)) or not isinstance(data_compra, (datetime, date)):
+        return 0
+    return max(0, (periodo.year - data_compra.year) * 12 + periodo.month - data_compra.month + 1)
+
+
 def valor_coluna(linha, colunas: dict[str, int], nome: str) -> object:
     indice = colunas.get(nome)
     return linha[indice - 1] if indice and indice <= len(linha) else None
+
+
+def chave_cdc(valor: object) -> str:
+    """Padroniza o código para relacionar a base à aba CDC."""
+    if isinstance(valor, float) and valor.is_integer():
+        valor = int(valor)
+    return texto(valor).upper()
+
+
+def carregar_centros_custo(wb) -> dict[str, str]:
+    """Lê a tabela de referência CDC sem depender do recálculo do Excel."""
+    if "CDC" not in wb.sheetnames:
+        return {}
+
+    ws = wb["CDC"]
+    colunas = indice_colunas(ws)
+    col_codigo = colunas.get("CODCCUSTO")
+    col_nome = colunas.get("NOME")
+    if not col_codigo or not col_nome:
+        return {}
+
+    return {
+        chave_cdc(linha[col_codigo - 1]): texto(linha[col_nome - 1])
+        for linha in ws.iter_rows(min_row=2, values_only=True)
+        if chave_cdc(linha[col_codigo - 1]) and texto(linha[col_nome - 1])
+    }
+
+
+def nome_centro_custo(centros_custo: dict[str, str], codigo: object, valor: object) -> str:
+    """Usa o valor da planilha ou recompõe CDC quando a fórmula não tiver cache."""
+    return texto(valor) or centros_custo.get(chave_cdc(codigo), "") or "SEM CENTRO DE CUSTO"
 
 
 def indice_colunas(ws) -> dict[str, int]:
@@ -121,6 +159,7 @@ def carregar_dados(arquivo: Path) -> list[dict[str, object]]:
 
         ws = wb["Planos"]
         colunas = localizar_colunas(ws)
+        centros_custo = carregar_centros_custo(wb)
 
         # Procura a coluna de valor caso exista. Se não existir, usa zero.
         col_valor = colunas.get("VALOR") or {normalizar(c.value): c.column for c in ws[1] if c.value}.get("VALOR")
@@ -159,7 +198,11 @@ def carregar_dados(arquivo: Path) -> list[dict[str, object]]:
                 "nome": texto(valores[colunas["NOME"] - 1]),
                 "cpf": texto(valores[colunas["CPF"] - 1]),
                 "codCdc": texto(valores[colunas["COD CDC"] - 1]) or "SEM CODIGO",
-                "cdc": texto(valores[colunas["CDC"] - 1]) or "SEM CENTRO DE CUSTO",
+                "cdc": nome_centro_custo(
+                    centros_custo,
+                    valores[colunas["COD CDC"] - 1],
+                    valores[colunas["CDC"] - 1],
+                ),
                 "status": status,
                 "valor": val_num,
             })
@@ -234,6 +277,23 @@ def carregar_parcelamentos(arquivo: Path) -> list[dict[str, object]]:
             periodo_origem = obter_competencia(valor_coluna(linha, colunas, "PERIODO"))
             if not periodo_origem:
                 continue
+            periodo = valor_coluna(linha, colunas, "PERIODO")
+            data_compra = valor_coluna(linha, colunas, "DATA DA COMPRA")
+            valor_total = numero(valor_coluna(linha, colunas, "VALOR TOTAL"))
+            num_parcelas = int(numero(valor_coluna(linha, colunas, "NUM PARCELAS")))
+            valor_mensal = numero(valor_coluna(linha, colunas, "VALOR MENSAL"))
+            parcela_atual = int(numero(valor_coluna(linha, colunas, "PARCELAMENTO")))
+            status = normalizar(valor_coluna(linha, colunas, "STATUS"))
+
+            # A aba Parcelamentos usa fórmulas. Quando o arquivo é salvo sem
+            # recálculo pelo Excel, openpyxl recebe os resultados como vazios.
+            if not valor_mensal and valor_total and num_parcelas:
+                valor_mensal = valor_total / num_parcelas
+            if not parcela_atual:
+                parcela_atual = meses_de_parcelamento(periodo, data_compra)
+            if not status and parcela_atual and num_parcelas:
+                status = "PAGANDO" if parcela_atual <= num_parcelas else "PAGO"
+
             registros.append({
                 "competencia": avancar_competencia(periodo_origem),
                 "periodoOrigem": periodo_origem,
@@ -245,12 +305,12 @@ def carregar_parcelamentos(arquivo: Path) -> list[dict[str, object]]:
                 "chapa": texto(valor_coluna(linha, colunas, "CHAPA")),
                 "nome": texto(valor_coluna(linha, colunas, "NOME")),
                 "serie": texto(valor_coluna(linha, colunas, "NUM SERIE")),
-                "dataCompra": texto(valor_coluna(linha, colunas, "DATA DA COMPRA")),
-                "valorTotal": numero(valor_coluna(linha, colunas, "VALOR TOTAL")),
-                "valorMensal": numero(valor_coluna(linha, colunas, "VALOR MENSAL")),
-                "parcelaAtual": int(numero(valor_coluna(linha, colunas, "PARCELAMENTO"))),
-                "numParcelas": int(numero(valor_coluna(linha, colunas, "NUM PARCELAS"))),
-                "status": normalizar(valor_coluna(linha, colunas, "STATUS")),
+                "dataCompra": texto(data_compra),
+                "valorTotal": valor_total,
+                "valorMensal": valor_mensal,
+                "parcelaAtual": parcela_atual,
+                "numParcelas": num_parcelas,
+                "status": status,
                 "termo": normalizar(valor_coluna(linha, colunas, "TERMO")),
                 "atualizadoEm": texto(valor_coluna(linha, colunas, "DT ATUALIZACAO")),
             })

@@ -24,8 +24,8 @@ from openpyxl import load_workbook
 
 PASTA_SCRIPT = Path(__file__).resolve().parent
 PASTA_PROJETO = PASTA_SCRIPT.parent
-PASTA_DADOS = PASTA_PROJETO / "01 - DADOS"
-PASTA_SAIDAS = PASTA_PROJETO / "04 - SAIDAS"
+PASTA_DADOS = PASTA_PROJETO / "data" / "entrada"
+PASTA_SAIDAS = PASTA_PROJETO / "data" / "saidas"
 SIGO_PADRAO = PASTA_SAIDAS / "BASE_SIGO.xlsx"
 BACKUP_PADRAO = PASTA_SAIDAS / "BACKUPS"
 RESULTADO_PADRAO = PASTA_SAIDAS / "resultado_comparacao.txt"

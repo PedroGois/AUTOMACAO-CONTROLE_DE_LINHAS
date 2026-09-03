@@ -13,8 +13,8 @@ from openpyxl.worksheet.table import Table, TableStyleInfo
 
 PASTA_SCRIPT = Path(__file__).resolve().parent
 PASTA_PROJETO = PASTA_SCRIPT.parent
-PASTA_DADOS = PASTA_PROJETO / "01 - DADOS"
-SAIDA_PADRAO = PASTA_PROJETO / "04 - SAIDAS" / "VERIFICAR POR CENTRO DE CUSTO"
+PASTA_DADOS = PASTA_PROJETO / "data" / "entrada"
+SAIDA_PADRAO = PASTA_PROJETO / "data" / "saidas" / "VERIFICAR POR CENTRO DE CUSTO"
 RESUMO_PADRAO = SAIDA_PADRAO / "resumo_separacao.txt"
 def localizar_telefonia():
     """Usa a cópia de teste quando existir; na pasta oficial usa TELEFONIA.xlsx."""

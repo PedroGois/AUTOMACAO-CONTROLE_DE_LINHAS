@@ -1,3 +1,4 @@
+import argparse
 from pathlib import Path
 import getpass
 import json
@@ -13,14 +14,13 @@ from dotenv import load_dotenv
 import pandas as pd
 
 # Carrega variáveis do arquivo .env
-load_dotenv()
-
-
 ENDPOINT_URL = "https://api-refeicao.jfi.com.br/users/licenses"
 PASTA_SCRIPT = Path(__file__).resolve().parent
 PASTA_PROJETO = PASTA_SCRIPT.parent
-OUTPUT_PATH = PASTA_PROJETO / "04 - SAIDAS" / "BASE_SIGO.xlsx"
-HISTORICO_PATH = PASTA_PROJETO / "04 - SAIDAS" / "HISTORICO_SIGO"
+load_dotenv(PASTA_PROJETO / "config" / ".env")
+
+OUTPUT_PATH = PASTA_PROJETO / "data" / "saidas" / "BASE_SIGO.xlsx"
+HISTORICO_PATH = PASTA_PROJETO / "data" / "saidas" / "HISTORICO_SIGO"
 COLUNAS_OBRIGATORIAS = {
     "externalid", "cpf", "nome", "costcenter", "costcentercode", "isactive",
 }
@@ -49,6 +49,7 @@ def request_json(url, method="GET", data=None, token=None):
 
 
 def main():
+    argparse.ArgumentParser(description="Baixa a base atual do SIGO.").parse_args()
     document = os.getenv("SIGO_DOCUMENT", "").strip()
     password = os.getenv("SIGO_PASSWORD", "")
     if not document:

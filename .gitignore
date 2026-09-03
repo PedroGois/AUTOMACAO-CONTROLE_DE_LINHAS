@@ -1,31 +1,30 @@
-# Ambiente Local
-.env
-.env.*
-!.env.example
+# Credenciais e configuração local
+config/.env
+config/.env.*
+!config/.env.example
+
+# Dados operacionais e resultados locais
+data/entrada/
+data/saidas/**
+!data/saidas/
+!data/saidas/.gitkeep
+!data/saidas/**/.gitkeep
+
+# Dados reais do dashboard e cópias temporárias
+dashboard/dados/
+dashboard/dados-ficticios/
+
+# Python e ferramentas locais
 __pycache__/
-*.pyc
-*.pyo
+*.py[cod]
 *.egg-info/
 .Python
 venv/
 env/
 
-# Dados reais (usar templates como base)
-01 - DADOS/*
-
-# Saídas geradas automaticamente
-04 - SAIDAS/**/*
-!04 - SAIDAS/
-!04 - SAIDAS/.gitkeep
-!04 - SAIDAS/BACKUPS/.gitkeep
-!04 - SAIDAS/COBRANCA E-MAILS/.gitkeep
-!04 - SAIDAS/COBRANCA E-MAILS/rascunhos_eml/.gitkeep
-!04 - SAIDAS/COBRANCA E-MAILS/anexos/.gitkeep
-!04 - SAIDAS/HISTORICO_SIGO/.gitkeep
-!04 - SAIDAS/VERIFICAR POR CENTRO DE CUSTO/.gitkeep
-
-# IDE
+# IDE e temporários
 .vscode/
 .idea/
-*.swp
-*.swo
+*.sw[op]
+*.tmp
+~$*
