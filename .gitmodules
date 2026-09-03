@@ -1,0 +1,4 @@
+[submodule "dashboard"]
+	path = dashboard
+	url = https://github.com/PedroGois/DASHBOARD-CONTROLE_LINHAS.git
+	branch = master
